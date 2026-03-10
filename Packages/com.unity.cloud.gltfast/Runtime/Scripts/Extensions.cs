@@ -115,8 +115,6 @@ namespace GLTFast
         public const string MaterialsSpecular = "KHR_materials_specular";
         /// <inheritdoc cref="Extension.MaterialsVariants"/>
         public const string MaterialsVariants = "KHR_materials_variants";
-        /// <inheritdoc cref="Extension.EpicLightmapTextures"/>
-        public const string EpicLightmapTextures = "EPIC_lightmap_textures";
 
         /// <summary>
         /// Returns the official name of the glTF extension
@@ -159,8 +157,6 @@ namespace GLTFast
                     return MaterialsSpecular;
                 case Extension.MaterialsSheen:
                     return MaterialsSheen;
-                case Extension.EpicLightmapTextures:
-                    return EpicLightmapTextures; // Support for EPIC_lightmap_textures
                 default:
                     return null;
             }
