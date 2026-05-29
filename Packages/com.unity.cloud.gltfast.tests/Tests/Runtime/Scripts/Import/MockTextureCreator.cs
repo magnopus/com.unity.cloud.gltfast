@@ -24,7 +24,7 @@ namespace GLTFast.Tests.Import
             LastLogger = logger;
         }
 
-        public Task<Texture2D> CreateTextureAsync(
+        public Task<TextureCreationResult> CreateTextureAsync(
             NativeArray<byte>.ReadOnly data,
             ImageFormat imageFormat,
             Image img,
@@ -38,10 +38,11 @@ namespace GLTFast.Tests.Import
             LoggerAtTimeOfCreation = LastLogger;
             CreateTextureCallCount++;
             LastImageFormat = imageFormat;
-            return Task.FromResult(new Texture2D(1, 1)
+            var texture = new Texture2D(1, 1)
             {
                 name = string.IsNullOrEmpty(img?.name) ? $"mock_image_{imageIndex}" : img.name
-            });
+            };
+            return Task.FromResult(new TextureCreationResult(texture));
         }
     }
 }

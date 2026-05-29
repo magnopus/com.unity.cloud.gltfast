@@ -57,7 +57,7 @@ namespace GLTFast
 
         /// <inheritdoc />
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public override async Task<Texture2D> CreateTextureAsync(
+        public override async Task<TextureCreationResult> CreateTextureAsync(
             NativeArray<byte>.ReadOnly data,
             ImageFormat imageFormat,
             Image img,
@@ -82,12 +82,12 @@ namespace GLTFast
 #endif // KTX_IS_ENABLED
                 default:
                     Logger?.Error(LogCode.ImageFormatUnknown, imageIndex.ToString(), string.Empty);
-                    return null;
+                    return default;
             }
         }
 
 #if UNITY_IMAGECONVERSION
-        static Texture2D CreateTextureFromJpegOrPng(
+        static TextureCreationResult CreateTextureFromJpegOrPng(
             NativeArray<byte>.ReadOnly data,
             Image img,
             int imageIndex,
@@ -104,12 +104,12 @@ namespace GLTFast
             texture.LoadImage(data.ToArray(), !readable);
 #endif
             Profiler.EndSample();
-            return texture;
+            return new TextureCreationResult(texture);
         }
 #endif // UNITY_IMAGECONVERSION
 
 #if KTX_IS_ENABLED
-        async Task<Texture2D> CreateTextureFromKtxAsync(
+        async Task<TextureCreationResult> CreateTextureFromKtxAsync(
             NativeArray<byte>.ReadOnly data,
             Image img,
             int imageIndex,
@@ -125,7 +125,7 @@ namespace GLTFast
             {
                 Logger?.Error(LogCode.EmbedImageLoadFailed);
                 Profiler.EndSample();
-                return null;
+                return default;
             }
 
             cancellationToken.ThrowIfCancellationRequestedWithTracking();
@@ -134,19 +134,17 @@ namespace GLTFast
             var result = await ktxTexture.LoadTexture2D(forceSampleLinear, readable);
             ktxTexture.Dispose();
 
-            Texture2D texture = null;
             if (result.errorCode == ErrorCode.Success)
             {
-                texture = result.texture;
+                var texture = result.texture;
                 texture.name = string.IsNullOrEmpty(img.name) ? $"image_{imageIndex}" : img.name;
-            }
-            else
-            {
-                Logger?.Error(LogCode.EmbedImageLoadFailed);
+                Profiler.EndSample();
+                return new TextureCreationResult(texture, flipY: result.orientation.IsYFlipped());
             }
 
+            Logger?.Error(LogCode.EmbedImageLoadFailed);
             Profiler.EndSample();
-            return texture;
+            return default;
         }
 #endif // KTX_IS_ENABLED
     }

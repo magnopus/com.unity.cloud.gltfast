@@ -34,8 +34,8 @@ namespace GLTFast
         /// <param name="generateMipMaps">When true, mip maps are generated for the texture.</param>
         /// <param name="anisoLevel">Anisotropic filtering level for the texture.</param>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
-        /// <returns>The created <see cref="Texture2D"/>, or null on failure.</returns>
-        Task<Texture2D> CreateTextureAsync(
+        /// <returns>A <see cref="TextureCreationResult"/> containing the created texture and image metadata, or a default result on failure.</returns>
+        Task<TextureCreationResult> CreateTextureAsync(
             NativeArray<byte>.ReadOnly data,
             ImageFormat imageFormat,
             Image img,

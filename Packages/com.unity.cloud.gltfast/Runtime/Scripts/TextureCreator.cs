@@ -39,7 +39,7 @@ namespace GLTFast
         }
 
         /// <inheritdoc />
-        public abstract Task<Texture2D> CreateTextureAsync(
+        public abstract Task<TextureCreationResult> CreateTextureAsync(
             NativeArray<byte>.ReadOnly data,
             ImageFormat imageFormat,
             Image img,
