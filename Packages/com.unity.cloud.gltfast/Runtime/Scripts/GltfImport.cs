@@ -233,13 +233,9 @@ namespace GLTFast
 
 #if UNITY_IMAGECONVERSION
         Dictionary<int, TextureDownloadBase> m_TextureDownloadTasks;
-#if !UNITY_6000_0_OR_NEWER
-        List<ImageCreateContext> m_ImageCreateContexts;
-#endif // !UNITY_6000_0_OR_NEWER
 #endif // UNITY_IMAGECONVERSION
 #if KTX_IS_ENABLED
         Dictionary<int,Task<IDownload>> m_KtxDownloadTasks;
-        List<KtxLoadContextBase> m_KtxLoadContextsBuffer;
 #endif // KTX_IS_ENABLED
 
         IDisposable[] m_AccessorData;
@@ -2572,7 +2568,7 @@ namespace GLTFast
                 {
                     Assert.AreEqual(m_Images.Length, Root.Images.Count);
                 }
-                await CreateTexturesFromBuffers(Root.Images, Root.BufferViews, cancellationToken);
+                await CreateTexturesFromBuffers(Root.Images, cancellationToken);
             }
             await DeferAgent.BreakPoint();
 
@@ -2597,19 +2593,6 @@ namespace GLTFast
                 m_AccessorJobsHandle.Complete();
             }
             if (!success) return success;
-
-#if KTX_IS_ENABLED
-            if(m_KtxLoadContextsBuffer!=null) {
-                await ProcessKtxLoadContexts(cancellationToken);
-            }
-#endif // KTX_IS_ENABLED
-
-#if UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
-            if (m_ImageCreateContexts != null)
-            {
-                await WaitForImageCreateContexts(cancellationToken);
-            }
-#endif // UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
 
             if (m_Images != null && Root.Textures != null)
             {
@@ -2970,47 +2953,6 @@ namespace GLTFast
             }
         }
 
-#if UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
-        async Task WaitForImageCreateContexts(CancellationToken cancellationToken)
-        {
-            var imageCreateContextsLeft = true;
-            while (imageCreateContextsLeft)
-            {
-                // TODO fix resource disposal when calling DisposeVolatileData() while jobs are queued/running
-                // cancellationToken.ThrowIfCancellationRequestedWithTracking();
-
-                var loadedAny = false;
-                for (var i = m_ImageCreateContexts.Count - 1; i >= 0; i--)
-                {
-                    // TODO fix resource disposal when calling DisposeVolatileData() while jobs are queued/running
-                    // cancellationToken.ThrowIfCancellationRequestedWithTracking();
-
-                    var jh = m_ImageCreateContexts[i];
-                    if (jh.jobHandle.IsCompleted)
-                    {
-                        jh.jobHandle.Complete();
-                        Profiler.BeginSample("Texture2D.LoadImage");
-                        m_Images[jh.imageIndex].LoadImage(
-                            jh.buffer,
-                            !LoadImageReadable(jh.imageIndex)
-                        );
-                        Profiler.EndSample();
-                        jh.gcHandle.Free();
-                        m_ImageCreateContexts.RemoveAt(i);
-                        loadedAny = true;
-                        await DeferAgent.BreakPoint();
-                    }
-                }
-                imageCreateContextsLeft = m_ImageCreateContexts.Count > 0;
-                if (!loadedAny && imageCreateContextsLeft)
-                {
-                    await Task.Yield();
-                }
-            }
-            m_ImageCreateContexts = null;
-        }
-#endif // UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
-
         void SetMaterialPointsSupport(int materialIndex)
         {
             Assert.IsNotNull(Root?.Materials);
@@ -3156,9 +3098,6 @@ namespace GLTFast
 
 #if UNITY_IMAGECONVERSION
             m_TextureDownloadTasks = null;
-#if !UNITY_6000_0_OR_NEWER
-            m_ImageCreateContexts = null;
-#endif
 #endif
 
             m_Images = null;
@@ -3498,13 +3437,9 @@ namespace GLTFast
 
         async Task CreateTexturesFromBuffers(
             IReadOnlyList<Image> srcImages,
-            IReadOnlyList<BufferViewBase> bufferViews,
             CancellationToken cancellationToken
         )
         {
-#if UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
-            m_ImageCreateContexts = new List<ImageCreateContext>();
-#endif
             for (int i = 0; i < m_Images.Length; i++)
             {
                 cancellationToken.ThrowIfCancellationRequestedWithTracking();
@@ -3531,14 +3466,28 @@ namespace GLTFast
                     if (imgFormat == ImageFormat.Ktx)
                     {
 #if KTX_IS_ENABLED
-                        Profiler.BeginSample("CreateTexturesFromBuffers.KtxLoadNativeContext");
-                        if(m_KtxLoadContextsBuffer==null) {
-                            m_KtxLoadContextsBuffer = new List<KtxLoadContextBase>();
+                        var ktxData = ((IGltfBuffers)this).GetBufferView(img.bufferView, out _);
+                        var forceSampleLinear = m_ImageGamma != null && !m_ImageGamma[i];
+                        var ktxResult = await m_TextureCreator.CreateTextureAsync(
+                            ktxData.AsNativeArrayReadOnly(),
+                            ImageFormat.Ktx,
+                            img,
+                            i,
+                            forceSampleLinear,
+                            LoadImageReadable(i),
+                            m_Settings.GenerateMipMaps,
+                            m_Settings.AnisotropicFilterLevel,
+                            cancellationToken);
+                        if (ktxResult.Texture != null)
+                        {
+                            m_Images[i] = ktxResult.Texture;
+                            if (!ktxResult.FlipY)
+                            {
+                                m_NonFlippedYTextureIndices ??= new HashSet<int>();
+                                m_NonFlippedYTextureIndices.Add(i);
+                            }
+                            m_Resources.Add(ktxResult.Texture);
                         }
-                        var ktxContext = new KtxLoadContext(
-                            i, ((IGltfBuffers)this).GetBufferView(img.bufferView, out _).AsNativeArrayReadOnly());
-                        m_KtxLoadContextsBuffer.Add(ktxContext);
-                        Profiler.EndSample();
                         await DeferAgent.BreakPoint();
 #else
                         Logger?.Error(LogCode.PackageMissing, "KTX for Unity", ExtensionName.TextureBasisUniversal);
@@ -3547,12 +3496,9 @@ namespace GLTFast
                     else
                     {
 #if UNITY_IMAGECONVERSION
-
                         var forceSampleLinear = m_ImageGamma != null && !m_ImageGamma[i];
-                        Texture2D txt;
-#if UNITY_6000_0_OR_NEWER
                         var data = ((IGltfBuffers)this).GetBufferView(img.bufferView, out _);
-                        txt = (await m_TextureCreator.CreateTextureAsync(
+                        var txt = (await m_TextureCreator.CreateTextureAsync(
                             data.AsNativeArrayReadOnly(),
                             imgFormat,
                             img,
@@ -3563,24 +3509,6 @@ namespace GLTFast
                             m_Settings.AnisotropicFilterLevel,
                             cancellationToken)).Texture;
                         await DeferAgent.BreakPoint();
-#else // UNITY_6000_0_OR_NEWER
-                        txt = CreateEmptyTexture(img, i, forceSampleLinear);
-                        Profiler.BeginSample("CreateTexturesFromBuffers.ExtractBuffer");
-                        var bufferView = bufferViews[img.bufferView];
-                        var buffer = GetBuffer(bufferView.buffer);
-                        var chunk = m_BinChunks[bufferView.buffer];
-
-                        var icc = new ImageCreateContext();
-                        icc.imageIndex = i;
-                        icc.buffer = new byte[bufferView.byteLength];
-                        icc.gcHandle = GCHandle.Alloc(icc.buffer, GCHandleType.Pinned);
-
-                        var job = CreateMemCopyJob(bufferView, buffer, chunk, icc);
-                        icc.jobHandle = job.Schedule();
-
-                        m_ImageCreateContexts.Add(icc);
-                        Profiler.EndSample();
-#endif // UNITY_6000_0_OR_NEWER
                         m_Images[i] = txt;
                         m_Resources.Add(txt);
 #else // UNITY_IMAGECONVERSION
@@ -3589,52 +3517,6 @@ namespace GLTFast
                     }
                 }
             }
-#if !(UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER) && !KTX_IS_ENABLED
-            await DeferAgent.BreakPoint();
-#endif
-        }
-
-#if UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
-        static unsafe MemCopyJob CreateMemCopyJob(
-            BufferViewBase bufferView,
-            ReadOnlyNativeArray<byte> nativeArray,
-            GlbBinChunk chunk,
-            ImageCreateContext icc
-            )
-        {
-            var job = new MemCopyJob
-            {
-                bufferSize = bufferView.byteLength,
-                input = (byte*)nativeArray.GetUnsafeReadOnlyPtr() + (bufferView.byteOffset + chunk.Start)
-            };
-            fixed (void* dst = &(icc.buffer[0]))
-            {
-                job.result = dst;
-            }
-
-            return job;
-        }
-#endif // UNITY_IMAGECONVERSION && !UNITY_6000_0_OR_NEWER
-
-        Texture2D CreateEmptyTexture(Image img, int index, bool forceSampleLinear)
-        {
-            var textureCreationFlags = TextureCreationFlags.DontUploadUponCreate | TextureCreationFlags.DontInitializePixels;
-            if (m_Settings.GenerateMipMaps)
-            {
-                textureCreationFlags |= TextureCreationFlags.MipChain;
-            }
-            var txt = new Texture2D(
-                4, 4,
-                forceSampleLinear
-                    ? GraphicsFormat.R8G8B8A8_UNorm
-                    : GraphicsFormat.R8G8B8A8_SRGB,
-                textureCreationFlags
-            )
-            {
-                anisoLevel = m_Settings.AnisotropicFilterLevel,
-                name = GetImageName(img, index)
-            };
-            return txt;
         }
 
         static string GetImageName(Image img, int index)
@@ -4409,67 +4291,6 @@ namespace GLTFast
                     + (sparseValues.byteOffset + bufferView.byteOffset + m_BinChunks[bufferIndex].Start);
             }
         }
-
-#if KTX_IS_ENABLED
-        struct KtxTranscodeTaskWrapper {
-            public int index;
-            public TextureResult result;
-        }
-
-        static async Task<KtxTranscodeTaskWrapper> KtxLoadAndTranscode(
-            int index,
-            KtxLoadContextBase ktx,
-            bool linear,
-            bool readable,
-            CancellationToken cancellationToken
-            )
-        {
-            return new KtxTranscodeTaskWrapper {
-                index = index,
-                result = await ktx.LoadTexture2D(linear, readable, cancellationToken)
-            };
-        }
-
-        async Task ProcessKtxLoadContexts(CancellationToken cancellationToken)
-        {
-            // TODO fix resource disposal when calling DisposeVolatileData() while jobs are queued/running
-
-            var maxCount = SystemInfo.processorCount+1;
-
-            var totalCount = m_KtxLoadContextsBuffer.Count;
-            var startedCount = 0;
-            var ktxTasks = new List<Task<KtxTranscodeTaskWrapper>>(maxCount);
-
-            while (startedCount < totalCount || ktxTasks.Count > 0)
-            {
-                while (ktxTasks.Count < maxCount && startedCount < totalCount)
-                {
-                    var ktx = m_KtxLoadContextsBuffer[startedCount];
-                    var forceSampleLinear = m_ImageGamma != null && !m_ImageGamma[ktx.imageIndex];
-                    var readable = LoadImageReadable(ktx.imageIndex);
-                    ktxTasks.Add(KtxLoadAndTranscode(startedCount, ktx, forceSampleLinear, readable, cancellationToken));
-                    startedCount++;
-                    await DeferAgent.BreakPoint();
-                }
-
-                var kTask = await Task.WhenAny(ktxTasks);
-                var i = kTask.Result.index;
-                if (kTask.Result.result.errorCode == ErrorCode.Success) {
-                    var ktx = m_KtxLoadContextsBuffer[i];
-                    m_Images[ktx.imageIndex] = kTask.Result.result.texture;
-                    if (!kTask.Result.result.orientation.IsYFlipped())
-                    {
-                        m_NonFlippedYTextureIndices ??= new HashSet<int>();
-                        m_NonFlippedYTextureIndices.Add(ktx.imageIndex);
-                    }
-                    await DeferAgent.BreakPoint();
-                }
-                ktxTasks.Remove(kTask);
-            }
-
-            m_KtxLoadContextsBuffer.Clear();
-        }
-#endif // KTX_IS_ENABLED
 
 #if UNITY_EDITOR
         /// <summary>

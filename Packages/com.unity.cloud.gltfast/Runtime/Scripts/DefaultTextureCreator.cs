@@ -109,6 +109,10 @@ namespace GLTFast
 #endif // UNITY_IMAGECONVERSION
 
 #if KTX_IS_ENABLED
+        static readonly SemaphoreSlim s_KtxSemaphore = new SemaphoreSlim(
+            SystemInfo.processorCount + 1,
+            SystemInfo.processorCount + 1);
+
         async Task<TextureCreationResult> CreateTextureFromKtxAsync(
             NativeArray<byte>.ReadOnly data,
             Image img,
@@ -117,34 +121,42 @@ namespace GLTFast
             bool readable,
             CancellationToken cancellationToken)
         {
-            Profiler.BeginSample("LoadImageKtx");
-
-            var ktxTexture = new KtxTexture();
-            var errorCode = ktxTexture.Open(data);
-            if (errorCode != ErrorCode.Success)
+            await s_KtxSemaphore.WaitAsync(cancellationToken);
+            try
             {
+                Profiler.BeginSample("LoadImageKtx");
+
+                var ktxTexture = new KtxTexture();
+                var errorCode = ktxTexture.Open(data);
+                if (errorCode != ErrorCode.Success)
+                {
+                    Logger?.Error(LogCode.EmbedImageLoadFailed);
+                    Profiler.EndSample();
+                    return default;
+                }
+
+                cancellationToken.ThrowIfCancellationRequestedWithTracking();
+
+                // TODO implement cancellation in KTX package
+                var result = await ktxTexture.LoadTexture2D(forceSampleLinear, readable);
+                ktxTexture.Dispose();
+
+                if (result.errorCode == ErrorCode.Success)
+                {
+                    var texture = result.texture;
+                    texture.name = string.IsNullOrEmpty(img.name) ? $"image_{imageIndex}" : img.name;
+                    Profiler.EndSample();
+                    return new TextureCreationResult(texture, flipY: result.orientation.IsYFlipped());
+                }
+
                 Logger?.Error(LogCode.EmbedImageLoadFailed);
                 Profiler.EndSample();
                 return default;
             }
-
-            cancellationToken.ThrowIfCancellationRequestedWithTracking();
-
-            // TODO implement cancellation in KTX package
-            var result = await ktxTexture.LoadTexture2D(forceSampleLinear, readable);
-            ktxTexture.Dispose();
-
-            if (result.errorCode == ErrorCode.Success)
+            finally
             {
-                var texture = result.texture;
-                texture.name = string.IsNullOrEmpty(img.name) ? $"image_{imageIndex}" : img.name;
-                Profiler.EndSample();
-                return new TextureCreationResult(texture, flipY: result.orientation.IsYFlipped());
+                s_KtxSemaphore.Release();
             }
-
-            Logger?.Error(LogCode.EmbedImageLoadFailed);
-            Profiler.EndSample();
-            return default;
         }
 #endif // KTX_IS_ENABLED
     }
