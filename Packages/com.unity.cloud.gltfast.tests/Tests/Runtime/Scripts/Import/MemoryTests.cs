@@ -34,12 +34,21 @@ namespace GLTFast.Tests.Import
 
         static Object s_TrackedObject;
 
+        GltfTestCaseRunner m_Runner;
+
         [OneTimeSetUp]
-        public void OneTimeSetUp()
+        public void OneTimeSetup()
         {
             // call GetDefaultMaterial here first to avoid it counting as an allocation in the first executed test
             var materialGenerator = MaterialGenerator.GetDefaultMaterialGenerator();
             _ = materialGenerator.GetDefaultMaterial();
+            m_Runner = new GltfTestCaseRunner();
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            m_Runner.Dispose();
         }
 
         [UnityTest]
@@ -60,18 +69,18 @@ namespace GLTFast.Tests.Import
             yield return GetAllObjectsTestInternal(LoadFileInternal(testCaseSet, testCase), true);
         }
 
-        [GltfTestCase("glTF-test-models", 59)]
+        [GltfTestCase("glTF-test-models", 65)]
         public IEnumerator LoadUnload_TestModels(GltfTestCaseSet testCaseSet, GltfTestCase testCase)
         {
             yield return GetAllObjectsTestInternal(LoadFileInternal(testCaseSet, testCase), true);
         }
 
-        static IEnumerator LoadFileInternal(GltfTestCaseSet testCaseSet, GltfTestCase testCase)
+        IEnumerator LoadFileInternal(GltfTestCaseSet testCaseSet, GltfTestCase testCase)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             Assert.Ignore("Cannot load from StreamingAssets file on Android, as they are in the compressed JAR file.");
 #endif
-            yield return AsyncWrapper.WaitForTask(AssetsTests.RunTestCase(testCaseSet, testCase));
+            yield return AsyncWrapper.WaitForTask(m_Runner.Run(testCaseSet, testCase));
             yield return null;
         }
 
@@ -80,14 +89,24 @@ namespace GLTFast.Tests.Import
             var before = new List<Object>();
             var after = new List<Object>();
 
-            before.AddRange(Object.FindObjectsByType<Object>(FindObjectsInactive.Include, FindObjectsSortMode.InstanceID));
+            before.AddRange(Object.FindObjectsByType<Object>(
+                FindObjectsInactive.Include
+#if !UNITY_6000_4_OR_NEWER
+                , FindObjectsSortMode.InstanceID
+#endif
+                ));
 
             yield return test;
 
             GC.Collect();
             yield return null;
 
-            after.AddRange(Object.FindObjectsByType<Object>(FindObjectsInactive.Include, FindObjectsSortMode.InstanceID));
+            after.AddRange(Object.FindObjectsByType<Object>(
+                FindObjectsInactive.Include
+#if !UNITY_6000_4_OR_NEWER
+                , FindObjectsSortMode.InstanceID
+#endif
+                ));
 
             if (expectEqual)
                 CollectionAssert.AreEquivalent(before, after);

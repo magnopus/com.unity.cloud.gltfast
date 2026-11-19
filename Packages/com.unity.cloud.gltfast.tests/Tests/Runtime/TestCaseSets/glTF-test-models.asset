@@ -115,6 +115,11 @@ MonoBehaviour:
     expectInstantiationFail: 0
     expectedLogCodes: 
     requiredExtensions: 
+  - relativeUri: AlphaColorSpace/glTF/AlphaColorSpace.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 04000000
   - relativeUri: Bounds/Bounds/Bounds.gltf
     expectLoadFail: 0
     expectInstantiationFail: 0
@@ -270,6 +275,16 @@ MonoBehaviour:
     expectInstantiationFail: 0
     expectedLogCodes: 
     requiredExtensions: 00000000
+  - relativeUri: SubMeshIncompatible/glTF/SubMeshIncompatible.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SubMeshIndexFormats/glTF/SubMeshIndexFormats.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
   - relativeUri: TextureVariants/glTF/TextureVariants.gltf
     expectLoadFail: 0
     expectInstantiationFail: 0
@@ -285,6 +300,11 @@ MonoBehaviour:
     expectInstantiationFail: 0
     expectedLogCodes: 
     requiredExtensions: 07000000
+  - relativeUri: TextureVariants/glTF-Binary-WebP/TextureVariants-WebP.glb
+    expectLoadFail: 1
+    expectInstantiationFail: 0
+    expectedLogCodes: 3e000000
+    requiredExtensions: 0f000000
   - relativeUri: TextureVariants/glTF-Embedded/TextureVariants-Embedded.gltf
     expectLoadFail: 0
     expectInstantiationFail: 0
@@ -310,3 +330,13 @@ MonoBehaviour:
     expectInstantiationFail: 0
     expectedLogCodes: 
     requiredExtensions: 07000000
+  - relativeUri: TextureVariants/glTF-WebP/TextureVariants-WebP.gltf
+    expectLoadFail: 1
+    expectInstantiationFail: 0
+    expectedLogCodes: 3e000000
+    requiredExtensions: 0f000000
+  - relativeUri: TextureVariants/glTF-WebP-Invalid/TextureVariants-WebP-Invalid.gltf
+    expectLoadFail: 1
+    expectInstantiationFail: 0
+    expectedLogCodes: 3e000000
+    requiredExtensions: 0f000000

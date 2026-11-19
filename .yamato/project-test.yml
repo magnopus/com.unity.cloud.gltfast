@@ -1,6 +1,6 @@
 {% metadata_file .yamato/package.metafile -%}
 
-codecov_assemblies: +glTFast.Documentation.Examples,+glTFast,+glTFast.Documentation.Examples.Editor,+glTFast.Editor,+glTFast.Newtonsoft,+glTFast.dots,+glTFast.Export
+codecov_assemblies: +glTFast*,-glTFast*Tests*
 ---
 {% for test_setup in test_setups -%}
 {% if test_setup.editor_versions -%}
@@ -82,28 +82,10 @@ test_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
       -quit
       -logFile {{ results_path }}/UnityProjectSetup.log
 {% endif -%}
-{% if test_setup.render_pipeline -%}
-    # Apply render pipeline asset
-    - >
-      {{ editor_exe }}
-      -projectPath Projects/{{ test_setup.project }}
-      -executeMethod GLTFast.Editor.Tests.SetupProject.SetRenderPipeline SRP:{{ test_setup.render_pipeline }}
-      -upmNoDefaultPackages
-      -batchmode
-      -quit
-      -logFile {{ results_path }}/UnityRenderPipelineSetup.log
-{% endif -%}
 
     # Run Tests
     # TODO: upm-ci rocks UPM and other cache directories. Maybe we can speed things up this way as well.
-    # TODO: DISABLE_SUB_PACKAGE_LOAD is required for 2020 only. Eventually remove all occurrences.
     - >
-{% if agent.os == "win" -%}
-      set DISABLE_SUB_PACKAGE_LOAD=TRUE
-{% else -%}
-      export DISABLE_SUB_PACKAGE_LOAD=TRUE
-{% endif -%}
-
       UnifiedTestRunner
       --testproject=Projects/{{ test_setup.project }}
       --editor-location=.Editor
@@ -167,28 +149,10 @@ build_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
       -quit
       -logFile {{ results_path }}/UnityProjectSetup.log
 {% endif -%}
-{% if test_setup.render_pipeline -%}
-    # Apply render pipeline asset
-    - >
-      {{ editor_exe }}
-      -projectPath Projects/{{ test_setup.project }}
-      -executeMethod GLTFast.Editor.Tests.SetupProject.SetRenderPipeline SRP:{{ test_setup.render_pipeline }}
-      -upmNoDefaultPackages
-      -batchmode
-      -quit
-      -logFile {{ results_path }}/UnityProjectSetup.log
-{% endif -%}
 
     # Run Tests
     # TODO: upm-ci rocks UPM and other cache directories. Maybe we can speed things up this way as well.
-    # TODO: DISABLE_SUB_PACKAGE_LOAD is required for 2020 only. Eventually remove all occurrences.
     - >
-{% if agent.os == "win" -%}
-      set DISABLE_SUB_PACKAGE_LOAD=TRUE
-{% else -%}
-      export DISABLE_SUB_PACKAGE_LOAD=TRUE
-{% endif -%}
-
       UnifiedTestRunner
       --testproject=Projects/{{ test_setup.project }}
       --editor-location=.Editor
@@ -252,17 +216,6 @@ run_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
       -quit
       -logFile {{ results_path }}/UnityProjectSetup.log
 {% endif -%}
-{% if test_setup.render_pipeline -%}
-    # Apply render pipeline asset
-    - >
-      {{ editor_exe }}
-      -projectPath Projects/{{ test_setup.project }}
-      -executeMethod GLTFast.Editor.Tests.SetupProject.SetRenderPipeline SRP:{{ test_setup.render_pipeline }}
-      -upmNoDefaultPackages
-      -batchmode
-      -quit
-      -logFile {{ results_path }}/UnityProjectSetup.log
-{% endif -%}
 
 {% if platform_id == "android" and platform.run == "shield" -%}
 {% assign androidUrlPrefix = "https://artifactory-slo.bf.unity3d.com/artifactory/mobile-generic/android/ADBKeys.zip!" -%}
@@ -276,14 +229,7 @@ run_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
 
     # Run Tests
     # TODO: upm-ci rocks UPM and other cache directories. Maybe we can speed things up this way as well.
-    # TODO: DISABLE_SUB_PACKAGE_LOAD is required for 2020 only. Eventually remove all occurrences.
     - >
-{% if agent.os == "win" -%}
-      set DISABLE_SUB_PACKAGE_LOAD=TRUE
-{% else -%}
-      export DISABLE_SUB_PACKAGE_LOAD=TRUE
-{% endif -%}
-
       UnifiedTestRunner
       --testproject=Projects/{{ test_setup.project }}
       --editor-location=.Editor

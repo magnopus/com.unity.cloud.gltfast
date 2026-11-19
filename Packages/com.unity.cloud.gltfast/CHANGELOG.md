@@ -4,14 +4,121 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [6.20.0] - 2026-08-25
+
+### Added
+- [IInstantiator.AddMesh](xref:GLTFast.IInstantiator.AddMesh*) and [IInstantiator.AddMeshInstanced](xref:GLTFast.IInstantiator.AddMeshInstanced*), replacing the `Primitive` naming.
+- `LogCode.AnimationComponentFail`
+- [SaveToFileAndDispose](xref:GLTFast.Export.GameObjectExport.SaveToFileAndDispose*) and [SaveToStreamAndDispose](xref:GLTFast.Export.GameObjectExport.SaveToStreamAndDispose*) overloads with `forceSync` parameter to enforce synchronous I/O. Recommended when exporting from Editor scripts (menu items, inspectors, post-processors), where the main-thread `SynchronizationContext` is not pumped in Edit Mode and awaited I/O continuations may never resume.
+- [IInstantiator.CreateNode](xref:GLTFast.IInstantiator.CreateNode*) overload that receives the node's name, so instantiators no longer need a separate naming call. It has a default implementation that routes to the previous `CreateNode` and `SetNodeName`, so existing implementations keep working unchanged. [GameObjectInstantiator](xref:GLTFast.GameObjectInstantiator) and `EntityInstantiator` implement it as a virtual method.
+
+### Changed
+- (Performance) Internal mesh export, buffer view and image data methods return `ValueTask` instead of `Task`, which removes an allocation per vertex stream and per index buffer when exporting a readable mesh.
+- Moved documentation code examples from `DocExamples` into `Runtime/DocExamples` to comply with package assembly layout requirements.
+- Clarified [IDeferAgent.ShouldDefer](xref:GLTFast.IDeferAgent.ShouldDefer) documentation to note that it must eventually return `false`, otherwise imports may stall indefinitely without raising an error.
+- Removed legacy .NET Framework fallback code paths (`#if NET_STANDARD` / `#if NET_STANDARD_2_1`). They were only needed for Unity versions prior to 2021.2, which are no longer supported (minimum is now Unity 6.0 LTS).
+- Bumped `com.unity.collections` to 2.6.8 and `com.unity.burst` to 1.8.30, the versions recommended for Unity 6000.0.
+- (Documentation) Improved installation instructions.
+- (Test) Updated tests dependency Graphics Test Framework (com.unity.testframework.graphics) to 9.0.0-pre.25.
+- (Test) Graphics tests generate their test cases via the Graphics Test Framework, so reference images are resolved by the framework (including per-platform overrides) and failures are inspectable in the Graphics Tests window. The per-view test methods collapsed into a single parameterized one.
+- (Import) (Performance) The Editor's glTF importer reads glTF, buffer and image files straight into native memory via [AsyncReadManager](xref:Unity.IO.LowLevel.Unsafe.AsyncReadManager). It previously read each file into a managed `byte[]` that stayed pinned for the duration of the import.
+
+### Fixed
+- Corrected invalid `cref` references in XML documentation comments (parameters, type parameters and a stale method reference) that produced warnings during documentation generation.
+- Fixed false positives in export to stream tests because it actually validated results from non-stream tests.
+- Prevent exception when Animation component was not created successfully.
+- Removed useless `SerializeFieldAttribute` from `MaterialsVariantsComponent.Control` to avoid compiler warning in Unity 6.6 and newer.
+- Removed usage of obsolete `FindObjectsByType` overloads.
+- (Test) Avoid `Animation` component conflict by accidentally loading glTF twice in `DocExamplesTest`.
+- [IsTextureYFlipped](xref:GLTFast.GltfImportBase.IsTextureYFlipped(System.Int32)) returns correct value when multiple textures reference one image.
+- (Export) Exceptions thrown during synchronous mesh export (`BakeMesh` / `BakeMeshDraco`) are now surfaced instead of being silently swallowed by unobserved tasks.
+- (Documentation) Updated the features' animation section to reflect that Playables support was removed and to list animation import into custom animation systems via add-ons.
+- (Performance) Removed unnecessary texture file read during Editor imports.
+
+### Deprecated
+- `IInstantiator.CreateNode` without a `name` parameter and `IInstantiator.SetNodeName`. Implement the [CreateNode](xref:GLTFast.IInstantiator.CreateNode*) overload that receives the name instead. Both remain functional.
+- `IInstantiator.AddPrimitive` and `IInstantiator.AddPrimitiveInstanced`, including their `GameObjectInstantiator`, `GameObjectBoundsInstantiator` and `EntityInstantiator` implementations. Call [IInstantiator.AddMesh](xref:GLTFast.IInstantiator.AddMesh*) and [IInstantiator.AddMeshInstanced](xref:GLTFast.IInstantiator.AddMeshInstanced*) through an `IInstantiator` reference instead.
+
+## [6.19.0] - 2026-05-19
+
+### Added
+- (Add-Ons) Import glTF animations to custom animation systems.
+  - [IAnimationProcessor](xref:GLTFast.Animations.IAnimationProcessor) &mdash; animation clips conversion
+  - [IAnimationProcessorFactory](xref:GLTFast.Animations.IAnimationProcessorFactory) &mdash; add-ons need to implement this
+- (Add-Ons) Lifetime management of converted glTF data and application during scene instantiation. Is used for custom animation import only for now.
+  - [IDataInstanceApplierFactory](xref:GLTFast.Addons.IDataInstanceApplierFactory) &mdash; owns converted data and forwards it to scene instantiation
+    - [IDataCache](xref:GLTFast.Addons.IDataCache)
+    - [IInstanceApplierFactory](xref:GLTFast.Addons.IInstanceApplierFactory)
+  - [IInstanceApplier](xref:GLTFast.Addons.IInstanceApplier) &mdash; applies data on scene instance
+- [IGltfAccessors](xref:GLTFast.IGltfAccessors) provides read-only access to typed glTF accessor data.
+- [INodeHierarchyInfo](xref:GLTFast.INodeHierarchyInfo) provides glTF node hierarchy information.
+- (Test) Inspector materials variant selection for `OpenGltfDialog`.
+- Instructions/guidelines for coding agents (`AGENTS.md`/`CLAUDE.md`)
+
+### Changed
+- Increased minimum required Unity version to 6.0 LTS.
+- Bumped dependency versions
+  - com.unity.burst to 1.8.29
+  - com.unity.collections to 2.6.6
+  - com.unity.mathematics to 1.3.3
+- GameObjectSceneInstance's [AddCamera](xref:GLTFast.GameObjectSceneInstance.AddCamera*), [AddLight](xref:GLTFast.GameObjectSceneInstance.AddLight*) and [SetLegacyAnimation](xref:GLTFast.GameObjectSceneInstance.SetLegacyAnimation*) are now public, so custom [IInstantiators](xref:GLTFast.IInstantiator) can utilize it.
+- Refactored `ImportAddonInstanceCollection` to derive directly from `List`/`QueryableList`.
+- (Performance) Importing animation curves got much faster and requires less managed memory. Keyframes are prepared in native arrays and set en bloc via `AnimationCurve.SetKeys(ReadOnlySpan<Keyframe>)` instead of being slowly added individually (thanks [jverral](https://github.com/jverral) for initiating this via [#44](https://github.com/Unity-Technologies/com.unity.cloud.gltfast/pull/44)).
+- (Performance) Reduced memory waste by using cached, static identifiers instead of inner-loop format strings for [AnimationClip.SetCurve](xref:UnityEngine.AnimationClip.SetCurve(System.String,System.Type,System.String,UnityEngine.AnimationCurve))'s `propertyName` parameter (thanks [jverral](https://github.com/jverral) for [#44](https://github.com/Unity-Technologies/com.unity.cloud.gltfast/pull/44)).
+- Enabled Render Graph in graphics settings by default on all projects (not using compatibility mode anymore).
+  - (Test) Compatibility mode is still enabled for Unity 6.0 tests.
+
+### Fixed
+- Improved comma placement in export summary (thanks anonymous for [#46](https://github.com/Unity-Technologies/com.unity.cloud.gltfast/pull/46)).
+- [Materials variants](xref:GLTFast.MaterialsVariantsComponent)' inspector shows correct variant when regaining focus (thanks [anonymous2585](https://github.com/anonymous2585) for [#48](https://github.com/Unity-Technologies/com.unity.cloud.gltfast/pull/48)).
+- (Import) Fixed merging of mesh primitives with shared vertex buffer, but different indices type.
+
+## [6.18.0] - 2026-04-01
+
+### Added
+- (Add-Ons) [IPostJsonDeserialization](xref:GLTFast.Addons.IPostJsonDeserialization) for intercepting the loading process right after glTF JSON deserialization.
+- (Test) Model *SubMeshIncompatible*, which features animated morph targets and primitives of incompatible vertex buffer structures.
+
+### Fixed
+- (Shader) Back-face normals are now correctly flipped in URP (fixes [#38](https://github.com/Unity-Technologies/com.unity.cloud.gltfast/issues/38)).
+- (Import) Textures are named after the corresponding glTF image again to ensure consistency with previous imports (reverts a change introduced in 6.17.0).
+- (Import) Log error instead of throwing exception when failing to download a texture with a relative URI when a base URI is not provided.
+
+## [6.17.0] - 2026-03-17
+
+### Added
+- Texture loading is fully customizable via Add-Ons.
+  - Inject support for glTF texture extensions (see [ITextureImageLoader](xref:GLTFast.ITextureImageLoader)).
+  - Customize PNG and Jpeg loading (see [IDefaultImageFormatLoader](xref:GLTFast.IDefaultImageFormatLoader)).
+  - See *ImageAddonTest* scene in the tests package which use the *AddOnsImage* samples from the `DocExamples` directory.
+- Explicit error message when unsupported image format WebP is detected ([LogCode.ImageFormatUnsupported](xref:GLTFast.Logging.LogCode.ImageFormatUnsupported)).
+- [ImageResult](xref:GLTFast.ImageResult) which depicts an imported glTF image.
+- (Test) TextureVariants test glTFs with WebP image format.
+- [Extension.TextureWebP](xref:GLTFast.Extension.TextureWebP) (no general WebP support, just for handling WebP cases).
+
+### Changed
+- (Add-Ons) GltfImport now accepts multiple import add-on instances of the same type.
+  - [GetImportAddonInstance](xref:GLTFast.GltfImportBase.GetImportAddonInstance*) returns the first instance that matches the type.
+- Ensured compatibility with [Fast Enter Play Mode](https://unity.com/blog/engine-platform/enter-play-mode-faster-in-unity-2019-3).
+- Image type detection is based on content (instead of mime-type depicted in glTF JSON, data URI mediatype or file extension).
+- Improved error message when image format is detected, but not supported (e.g. WebP).
+
+### Fixed
+- (Import) [AnisotropicFilterLevel setting](xref:GLTFast.ImportSettings.AnisotropicFilterLevel) is applied to KTX textures as well.
+- (Import) Leak of textures in case of loading errors.
+- (Export) Meshes with zero vertices or indices will now be skipped and an error will be logged instead of an exception being thrown (fixes [#806](https://github.com/atteneder/glTFast/issues/806)).
+
+## [6.16.1] - 2026-02-19
 
 ### Added
 - (Test) *Empty Scene* test asset.
+- (Import) Support for 16-bit mesh indices reduces memory footprint for meshes with less than 65k vertices per sub-mesh.
+  - 16-bit indices are not converted to 32-bit anymore.
+  - 8-bit indices ar converted to 16-bit (instead of 32-bit).
 
 ### Changed
 - [GltfImport.Load](xref:GLTFast.GltfImportBase.Load*), [GltfImport.InstantiateSceneAsync](xref:GLTFast.GltfImportBase.InstantiateSceneAsync*) and their variants now throw an `OperationCanceledException` when cancelled before completion.
-- Replaced the generic [StandardMaterialExport](xref:GLTFast.Export.StandardMaterialExport) with specializations.
+- Replaced the generic `StandardMaterialExport` with specializations.
   - [LitMaterialExport](xref:GLTFast.Export.LitMaterialExport) for Universal Render Pipeline Lit shader material export.
   - [BuiltInStandardMaterialExport](xref:GLTFast.Export.BuiltInStandardMaterialExport) for Built-in Render Pipeline Standard shader material export.
 - (Performance) Improved performance of mesh indices conversion for draw modes line loop, triangle strips and triangle fan.
@@ -35,12 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (Shader) Incorrect normal unpacking when using default normal map on Android (fixes [#791](https://github.com/atteneder/glTFast/issues/791) and [802](https://github.com/atteneder/glTFast/issues/802)).
 - (Export) Texture scaling not preserved on URP/Lit export (fixes [#805](https://github.com/atteneder/glTFast/issues/805)).
 
-### Removed
-
 ### Deprecated
-- Generic built-in/Universal render pipeline [StandardMaterialExport](xref:GLTFast.Export.StandardMaterialExport).
-
-### Security
+- Generic built-in/Universal render pipeline `StandardMaterialExport`.
 
 ## [6.16.0] - 2026-01-20
 
@@ -67,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [6.15.1] - 2025-12-09
 
 ### Added
-- Assigned glTF logo to [GltfEntityAsset](xref:GLTFast.GltfEntityAsset) component.
+- Assigned glTF logo to `GltfEntityAsset` component.
 - (Test) Test glTF asset *CylinderWithMaterial* that's procedurally generated at runtime.
 - (Test) Tests for documentation examples.
 - (Test) `OpenGltfScene` improvements.
@@ -77,7 +180,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Informative console logs with file path/URI and load time.
   - Now works at runtime as well (without file dialog).
   - Re-positions camera so that the loaded glTF scene is framed.
-  - Can load via [EntityInstantiator](xref:GLTFast.EntityInstantiator).
+  - Can load via `EntityInstantiator`.
 
 ### Changed
 - (Entities) Entities of a scene are grouped via `LinkedEntityGroup`.
@@ -110,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (Test) *No Normal* test asset.
 
 ### Changed
-- *glTFast* will return a success value of `true` even if an image fails to load (which has not been consistent across the API before). This makes it easier to display assets despite of non-critical loading errors. Users who need stricter behavior can resort to monitoring for error logs (see the runtime import manual about logging or the `logger` parameter of [GltfImport constructor](xref:GLTFast.GltfImportBase.#ctor(GLTFast.Loading.IDownloadProvider,GLTFast.IDeferAgent,GLTFast.Materials.IMaterialGenerator,GLTFast.Logging.ICodeLogger))).
+- *glTFast* will return a success value of `true` even if an image fails to load (which has not been consistent across the API before). This makes it easier to display assets despite of non-critical loading errors. Users who need stricter behavior can resort to monitoring for error logs (see the runtime import manual about logging or the `logger` parameter of [GltfImport constructor](xref:GLTFast.GltfImportBase.%23ctor*)).
 - Primitives of a Draco compressed mesh will be decoded into in a single Unity mesh with multiple sub-meshes instead of multiple Unity meshes (thanks [Kibsgaard](https://github.com/Kibsgaard) for initiating this in [#33](https://github.com/Unity-Technologies/com.unity.cloud.gltfast/pull/33)).
 - [Draco for Unity] minimum required version was raised to 5.4.0.
 - (Performance) Texture data is not copied into managed memory before loading via [Texture2D.LoadImage](xref:UnityEngine.ImageConversion.LoadImage(UnityEngine.Texture2D,System.Byte[],System.Boolean)) (applies for Unity 6.0 or newer).

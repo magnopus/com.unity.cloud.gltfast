@@ -7,22 +7,23 @@
 
 To install the *Unity glTFast* package, follow these steps:
 
-1. In your Unity project, go to Windows > Package Manager.
-2. On the status bar, select the Add (+) button.
-3. From the Add menu, select Add + package by name. Name and Version fields appear.
-4. In the Name field, enter `com.unity.cloud.gltfast`.
-5. Click *Add*.
-6. The Editor installs the latest available version of the package and any dependent packages.
+1. With your project opened in the Unity Editor, open the [Package Manager window](xref:um-upm-ui-access).
+2. Click the install button (➕) in the toolbar. The options for installing packages appear.
+3. Select *Install package by technical name…* from the install menu (*Install package by name…* on older versions). Two text boxes and an *Install* button appear.
+4. Enter `com.unity.cloud.gltfast` into the *Name* field.
+5. Click *Install*.
+
+The Editor installs the latest available version of the package and any dependent packages.
 
 ## Optional Packages
 
 There are some related package that improve *Unity glTFast* by extending its feature set.
 
 - [Built-in Packages](https://docs.unity3d.com/Manual/pack-build.html)
-  - [Image Conversion](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/UnityEngine.ImageConversionModule.html) for import/export of Jpeg and PNG textures.
-  - [Unity Web Request Texture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/UnityEngine.UnityWebRequestTextureModule.html) for import of Jpeg/PNG images from URI.
-  - [Animation](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/UnityEngine.AnimationModule.html) for animation playback.
-  - [Physics](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/UnityEngine.PhysicsModule.html) to create a glTF scene's [bounding box collider](xref:UnityEngine.BoxCollider) via [GltfBoundsAsset](xref:GLTFast.GltfBoundsAsset).
+  - [Image Conversion](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/UnityEngine.ImageConversionModule.html) for import/export of Jpeg and PNG textures.
+  - [Unity Web Request Texture](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/UnityEngine.UnityWebRequestTextureModule.html) for import of Jpeg/PNG images from URI.
+  - [Animation](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/UnityEngine.AnimationModule.html) for animation playback.
+  - [Physics](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/UnityEngine.PhysicsModule.html) to create a glTF scene's [bounding box collider](xref:UnityEngine.BoxCollider) via [GltfBoundsAsset](xref:GLTFast.GltfBoundsAsset).
 - [Draco&trade; for Unity][DracoForUnity] (provides support for [KHR_draco_mesh_compression][ExtDraco])
 - [KTX&trade; for Unity][KtxUnity] (provides support for [KHR_texture_basisu][ExtBasisU])
 - [*meshoptimizer decompression for Unity*][Meshopt] (provides support for [EXT_meshopt_compression][ExtMeshopt])

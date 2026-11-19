@@ -200,8 +200,7 @@ namespace GLTFast.Materials
             {
                 material = GetPbrSpecularGlossinessMaterial(gltfMaterial.doubleSided);
             }
-            else
-            if (isUnlit)
+            else if (isUnlit)
             {
                 material = GetUnlitMaterial(gltfMaterial.doubleSided);
             }
@@ -470,6 +469,16 @@ namespace GLTFast.Materials
             material.DisableKeyword(AlphaTestOnKeyword);
             material.DisableKeyword(k_AlphaPremultiplyOnKeyword);
         }
+
+#if UNITY_EDITOR
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStaticsOnLoad()
+        {
+            // Reset static state
+            s_DefaultMaterialGenerated = false;
+            s_DefaultMaterial = null;
+        }
+#endif
     }
 }
 #endif // GLTFAST_BUILTIN_RP || UNITY_EDITOR

@@ -67,14 +67,17 @@ namespace GLTFast
 #if USING_URP || USING_HDRP
             // ReSharper disable once Unity.PerformanceCriticalCodeNullComparison
             var rpAsset = QualitySettings.renderPipeline ? QualitySettings.renderPipeline : GraphicsSettings.defaultRenderPipeline;
-            if (rpAsset != null) {
+            if (rpAsset != null)
+            {
 #if USING_URP
-                if (rpAsset is UniversalRenderPipelineAsset) {
+                if (rpAsset is UniversalRenderPipelineAsset)
+                {
                     return RenderPipeline.Universal;
                 }
 #endif
 #if USING_HDRP
-                if (rpAsset is HDRenderPipelineAsset) {
+                if (rpAsset is HDRenderPipelineAsset)
+                {
                     return RenderPipeline.HighDefinition;
                 }
 #endif
@@ -83,5 +86,14 @@ namespace GLTFast
 #endif
             return RenderPipeline.BuiltIn;
         }
+
+#if UNITY_EDITOR
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStaticsOnLoad()
+        {
+            // Reset static state
+            s_RenderPipeline = RenderPipeline.Unknown;
+        }
+#endif
     }
 }

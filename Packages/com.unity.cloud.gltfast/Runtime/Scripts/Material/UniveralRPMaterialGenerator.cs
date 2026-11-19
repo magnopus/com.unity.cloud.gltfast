@@ -15,14 +15,14 @@ using UnityEngine.Rendering.Universal;
 
 using Material = UnityEngine.Material;
 
-namespace GLTFast.Materials {
+namespace GLTFast.Materials
+{
 
-    public class UniversalRPMaterialGenerator : ShaderGraphMaterialGenerator {
+    public class UniversalRPMaterialGenerator : ShaderGraphMaterialGenerator
+    {
 
         // Keywords
         const string k_TransmissionKeyword = "_TRANSMISSION";
-
-        static bool s_SupportsCameraOpaqueTexture;
 
 #if UNITY_EDITOR
         /// <summary>Guid of the shader graph with clearcoat support</summary>
@@ -34,21 +34,27 @@ namespace GLTFast.Materials {
         static bool s_MetallicClearcoatShaderQueried;
         static Shader s_MetallicClearcoatShader;
 
-        public UniversalRPMaterialGenerator(UniversalRenderPipelineAsset renderPipelineAsset) {
-            s_SupportsCameraOpaqueTexture = renderPipelineAsset.supportsCameraOpaqueTexture;
+        bool m_SupportsCameraOpaqueTexture;
+
+        public UniversalRPMaterialGenerator(UniversalRenderPipelineAsset renderPipelineAsset)
+        {
+            m_SupportsCameraOpaqueTexture = renderPipelineAsset.supportsCameraOpaqueTexture;
         }
 
-        protected override void SetDoubleSided(MaterialBase gltfMaterial, Material material) {
-            base.SetDoubleSided(gltfMaterial,material);
+        protected override void SetDoubleSided(MaterialBase gltfMaterial, Material material)
+        {
+            base.SetDoubleSided(gltfMaterial, material);
             material.SetFloat(MaterialProperty.Cull, (int)CullMode.Off);
         }
 
-        protected override void SetAlphaModeMask(MaterialBase gltfMaterial, Material material) {
+        protected override void SetAlphaModeMask(MaterialBase gltfMaterial, Material material)
+        {
             base.SetAlphaModeMask(gltfMaterial, material);
             material.SetFloat(MaterialProperty.AlphaClip, 1);
         }
 
-        protected override void SetShaderModeBlend(MaterialBase gltfMaterial, Material material) {
+        protected override void SetShaderModeBlend(MaterialBase gltfMaterial, Material material)
+        {
             material.SetOverrideTag(RenderTypeTag, TransparentRenderType);
             material.EnableKeyword(SurfaceTypeTransparentKeyword);
             material.EnableKeyword(DisableSsrTransparentKeyword);
@@ -58,7 +64,7 @@ namespace GLTFast.Materials {
             material.SetShaderPassEnabled(ShaderPassTransparentBackface, false);
             material.SetShaderPassEnabled(ShaderPassRayTracingPrepass, false);
             material.SetShaderPassEnabled(ShaderPassDepthOnlyPass, false);
-            material.SetFloat(MaterialProperty.SrcBlend, (int) BlendMode.SrcAlpha);//5
+            material.SetFloat(MaterialProperty.SrcBlend, (int)BlendMode.SrcAlpha);//5
             material.SetFloat(MaterialProperty.DstBlend, (int)BlendMode.OneMinusSrcAlpha);//10
             material.SetFloat(ZTestGBufferProperty, (int)CompareFunction.Equal); //3
             material.SetFloat(AlphaDstBlendProperty, (int)BlendMode.OneMinusSrcAlpha);//10
@@ -95,8 +101,10 @@ namespace GLTFast.Materials {
             return base.GetMetallicShader(features);
         }
 
-        protected override ShaderMode? ApplyTransmissionShaderFeatures(MaterialBase gltfMaterial) {
-            if (!s_SupportsCameraOpaqueTexture) {
+        protected override ShaderMode? ApplyTransmissionShaderFeatures(MaterialBase gltfMaterial)
+        {
+            if (!m_SupportsCameraOpaqueTexture)
+            {
                 // Fall back to makeshift approximation via premultiply or blend
                 return base.ApplyTransmissionShaderFeatures(gltfMaterial);
             }
@@ -117,9 +125,12 @@ namespace GLTFast.Materials {
             Transmission transmission,
             Material material,
             RenderQueue? renderQueue
-        ) {
-            if (s_SupportsCameraOpaqueTexture) {
-                if (transmission.transmissionFactor > 0f) {
+        )
+        {
+            if (m_SupportsCameraOpaqueTexture)
+            {
+                if (transmission.transmissionFactor > 0f)
+                {
                     material.EnableKeyword(k_TransmissionKeyword);
                     material.SetFloat(TransmissionFactorProperty, transmission.transmissionFactor);
                     renderQueue = RenderQueue.Transparent;
@@ -128,9 +139,9 @@ namespace GLTFast.Materials {
                         material,
                         gltf,
                         TransmissionTextureProperty
-                        // TransmissionTextureScaleTransformProperty, // TODO: add support in shader
-                        // TransmissionTextureRotationProperty, // TODO: add support in shader
-                        // TransmissionTextureUVChannelProperty // TODO: add support in shader
+                    // TransmissionTextureScaleTransformProperty, // TODO: add support in shader
+                    // TransmissionTextureRotationProperty, // TODO: add support in shader
+                    // TransmissionTextureUVChannelProperty // TODO: add support in shader
                     )) { }
                 }
                 return renderQueue;
@@ -144,6 +155,16 @@ namespace GLTFast.Materials {
                 renderQueue
                 );
         }
+
+#if UNITY_EDITOR
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStaticsOnLoad()
+        {
+            // Reset static state
+            s_MetallicClearcoatShader = null;
+            s_MetallicClearcoatShaderQueried = false;
+        }
+#endif
     }
 }
 #endif // USING_URP

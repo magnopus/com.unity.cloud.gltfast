@@ -18,16 +18,38 @@ public class GltfastSettings : AnnotatedSettingsBase
             new PackageOptions
             {
                 ReleaseOptions = new ReleaseOptions { IsReleasing = true },
-                ValidationOptions = new ValidationOptions { UtrTestingYamatoTimeout = 30 },
+                ValidationOptions = new ValidationOptions
+                {
+                    UtrTestingYamatoTimeout = 60,
+                    ProjectPath = "test-cloud.gltfast",
+                },
+            }
+        },
+        {
+            "com.unity.cloud.gltfast.devtools",
+            new PackageOptions
+            {
+                PackJobOptions = new PackJobOptions { AlwaysGenerate = false },
+                ReleaseOptions = new ReleaseOptions { IsReleasing = false },
             }
         }
     };
+
+    public readonly string[] ProjectPaths =
+    [
+        "glTFast-Test",
+        "glTFast-Test-BuiltIn",
+        "glTFast-Test-entities",
+        "glTFast-Test-HDRP",
+        "glTFast-Test-minimalistic"
+    ];
 
     public GltfastSettings()
     {
         Wrench = new WrenchSettings(
             PackagesRootPaths,
-            PackageOptions
+            PackageOptions,
+            wrenchCsProjectPath: "Tools/CI/Gltfast.Cookbook.csproj"
         );
 
         var gltfast = Wrench.Packages["com.unity.cloud.gltfast"];

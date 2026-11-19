@@ -14,7 +14,7 @@ using UnityEngine.Profiling;
 
 namespace GLTFast
 {
-    class DataUri
+    static class DataUri
     {
         /// <summary>
         /// Base 64 string to byte array decode speed in bytes per second
@@ -27,6 +27,33 @@ namespace GLTFast
 #else
             150_000_000;
 #endif
+
+        public static bool IsDataUri(ReadOnlySpan<char> dataUri)
+        {
+            return dataUri.StartsWith("data:", StringComparison.Ordinal);
+        }
+
+        public static async ValueTask<IReadOnlyDisposableData> DecodeDataUriAsync(
+            string dataUri,
+            IDeferAgent deferAgent,
+            CancellationToken cancellationToken
+        )
+        {
+            if (!TryGetDataUriDescriptor(
+                    dataUri, out _, out var startIndex, out var byteLength))
+            {
+                return null;
+            }
+
+            var data = await DecodeDataUriAsync(
+                dataUri, startIndex, byteLength, deferAgent, cancellationToken);
+            if (!data.IsCreated)
+            {
+                return null;
+            }
+
+            return new ReadOnlyDisposableData(data);
+        }
 
         public static async ValueTask<NativeArray<byte>> DecodeDataUriAsync(
             string dataUri,
@@ -69,60 +96,16 @@ namespace GLTFast
             return result;
         }
 
-#if !UNITY_6000_0_OR_NEWER
-        public static async ValueTask<byte[]> DecodeDataUriToManagedArrayAsync(
+        public static bool TryGetDataUriDescriptor(
             string dataUri,
-            int startIndex,
-            int byteLength,
-            IDeferAgent deferAgent,
-            CancellationToken cancellationToken,
-            bool timeCritical = false
-            )
-        {
-            var predictedTime = dataUri.Length / (float)k_Base64DecodeSpeed;
-#if GLTFAST_THREADS
-            if (!timeCritical || deferAgent.ShouldDefer(predictedTime))
-            {
-                try
-                {
-                    return await Task.Run(() => DecodeDataUriToManagedArray(dataUri, startIndex, byteLength), cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    cancellationToken.ThrowIfCancellationRequestedWithTracking();
-                }
-            }
-#endif
-            await deferAgent.BreakPoint(predictedTime);
-            var result = DecodeDataUriToManagedArray(dataUri, startIndex, byteLength);
-            return result;
-        }
-#endif // !UNITY_6000_0_OR_NEWER
-
-        public static bool TryGetImageDataUriDescriptor(
-            string dataUri,
-            out ImageFormat imageFormat,
+            out ReadOnlySpan<char> mimeType,
             out int startIndex,
             out int byteLength
-        )
-        {
-            if (TryGetDataUriDescriptor(
-                    dataUri, out var mimeType, out startIndex, out byteLength))
-            {
-                imageFormat = ImageFormatExtensions.FromMimeType(mimeType);
-                return true;
-            }
-
-            imageFormat = ImageFormat.Unknown;
-            return false;
-        }
-
-        public static bool TryGetDataUriDescriptor(string dataUri, out ReadOnlySpan<char> mimeType, out int startIndex, out int byteLength)
+            )
         {
             var mediaTypeEnd = dataUri.IndexOf(';', 5, Math.Min(dataUri.Length - 5, 1000));
             if (mediaTypeEnd < 0)
             {
-                Profiler.EndSample();
                 mimeType = null;
                 startIndex = 0;
                 byteLength = -1;
@@ -131,7 +114,6 @@ namespace GLTFast
             mimeType = dataUri.AsSpan(5, mediaTypeEnd - 5);
             if (!dataUri.AsSpan(mediaTypeEnd + 1, 7).SequenceEqual("base64,"))
             {
-                Profiler.EndSample();
                 startIndex = 0;
                 byteLength = -1;
                 return false;
@@ -160,21 +142,5 @@ namespace GLTFast
             Profiler.EndSample();
             return data;
         }
-
-#if !UNITY_6000_0_OR_NEWER
-        static byte[] DecodeDataUriToManagedArray(string dataUri, int startIndex, int dataLength)
-        {
-            Profiler.BeginSample("DecodeDataUriToManagedArray");
-            var data = new byte[dataLength];
-            if (!Convert.TryFromBase64Chars(dataUri.AsSpan(startIndex), data.AsSpan(), out var bytesWritten)
-                || bytesWritten != dataLength)
-            {
-                // Invalidate buffer to signal decoding failed.
-                data = null;
-            }
-            Profiler.EndSample();
-            return data;
-        }
-#endif // !UNITY_6000_0_OR_NEWER
     }
 }

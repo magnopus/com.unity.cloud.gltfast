@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using GLTFast.Schema;
 using Unity.Collections;
 using Unity.Jobs;
@@ -10,7 +11,6 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Profiling;
 using Mesh = UnityEngine.Mesh;
-using System.Threading.Tasks;
 
 namespace GLTFast
 {
@@ -18,7 +18,8 @@ namespace GLTFast
     class MorphTargetsGenerator
     {
         readonly string[] m_MorphTargetNames;
-        readonly GltfImportBase m_GltfImport;
+        readonly IGltfBuffers m_Buffers;
+        readonly IDeferAgent m_DeferAgent;
 
         MorphTargetGenerator[] m_Contexts;
         NativeArray<JobHandle> m_Handles;
@@ -30,11 +31,13 @@ namespace GLTFast
             string[] morphTargetNames,
             bool hasNormals,
             bool hasTangents,
-            GltfImportBase gltfImport
+            IGltfBuffers buffers,
+            IDeferAgent deferAgent
             )
         {
             m_MorphTargetNames = morphTargetNames;
-            m_GltfImport = gltfImport;
+            m_Buffers = buffers;
+            m_DeferAgent = deferAgent;
 
             m_Contexts = new MorphTargetGenerator[morphTargetCount];
             for (var i = 0; i < morphTargetCount; i++)
@@ -55,7 +58,7 @@ namespace GLTFast
             var jobHandle = morphTargetGenerator.ScheduleMorphTargetJobs(
                 morphTarget,
                 offset,
-                m_GltfImport
+                m_Buffers
                 );
             if (jobHandle.HasValue)
             {
@@ -82,7 +85,7 @@ namespace GLTFast
                 var context = m_Contexts[index];
                 context.AddToMesh(mesh, m_MorphTargetNames?[index] ?? index.ToString());
                 context.Dispose();
-                await m_GltfImport.DeferAgent.BreakPoint();
+                await m_DeferAgent.BreakPoint();
             }
             m_Contexts = null;
         }

@@ -1,14 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Unity Technologies and the glTFast authors
 // SPDX-License-Identifier: Apache-2.0
 
-#if UNITY_2023_3_OR_NEWER
-#define ASYNC_MESH_DATA
-#endif
-
 using System;
-#if ASYNC_MESH_DATA
 using System.Threading.Tasks;
-#endif
 using Unity.Collections;
 using UnityEngine;
 
@@ -35,28 +29,14 @@ namespace GLTFast.Export
             return m_MeshData.GetSubMesh(subMesh).indexCount;
         }
 
-#if ASYNC_MESH_DATA
-        public Task<NativeArray<TIndex>> GetIndexData(bool sync)
+        public ValueTask<NativeArray<TIndex>> GetIndexData(bool sync)
         {
-            return Task.FromResult(m_MeshData.GetIndexData<TIndex>());
+            return new ValueTask<NativeArray<TIndex>>(m_MeshData.GetIndexData<TIndex>());
         }
 
-        public Task<NativeArray<byte>> GetVertexData(int stream, bool sync)
+        public ValueTask<NativeArray<byte>> GetVertexData(int stream, bool sync)
         {
-            return Task.FromResult(m_MeshData.GetVertexData<byte>(stream));
+            return new ValueTask<NativeArray<byte>>(m_MeshData.GetVertexData<byte>(stream));
         }
-#else
-        public NativeArray<TIndex> GetIndexData()
-        {
-            return m_MeshData.GetIndexData<TIndex>();
-        }
-
-        public NativeArray<byte> GetVertexData(int stream)
-        {
-            return m_MeshData.GetVertexData<byte>(stream);
-        }
-#endif
-
-
     }
 }

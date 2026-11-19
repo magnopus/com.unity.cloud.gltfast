@@ -24,7 +24,32 @@
       "MaxEditorVersion": "",
       "coverageEnabled": false,
       "coverageCommands": [
-        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;pathReplacePatterns:@*,,**/PackageCache/,;sourcePaths:YAMATO_SOURCE_DIR/Packages;"
+        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;"
+      ],
+      "dependantsToIgnoreInPreviewApv": {},
+      "postPackCommands": []
+    },
+    "com.unity.cloud.gltfast.devtools": {
+      "directory": "Packages/com.unity.cloud.gltfast.devtools/",
+      "prePackCommands": [],
+      "preTestCommands": {
+        "MacOs13": [],
+        "MacOs13Arm": [],
+        "Ubuntu1804": [],
+        "Ubuntu2004": [],
+        "Ubuntu2204": [],
+        "Win10": [],
+        "Win10GPU": [],
+        "Win11": [],
+        "Win11Arm": [],
+        "Win11GPU": []
+      },
+      "InternalOnly": false,
+      "NeverPublish": false,
+      "MaxEditorVersion": "",
+      "coverageEnabled": false,
+      "coverageCommands": [
+        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;"
       ],
       "dependantsToIgnoreInPreviewApv": {},
       "postPackCommands": []
@@ -49,7 +74,7 @@
       "MaxEditorVersion": "",
       "coverageEnabled": false,
       "coverageCommands": [
-        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;pathReplacePatterns:@*,,**/PackageCache/,;sourcePaths:YAMATO_SOURCE_DIR/Packages;"
+        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;"
       ],
       "dependantsToIgnoreInPreviewApv": {},
       "postPackCommands": []
@@ -60,14 +85,14 @@
   ],
   "jobs_to_monitor": {
     "com.unity.cloud.gltfast": [
-      ".yamato/wrench/api-validation-jobs.yml#api_validation_-_cloud_gltfast_-_2022_3_-_win10",
+      ".yamato/wrench/api-validation-jobs.yml#api_validation_-_cloud_gltfast_-_6000_0_-_win10",
       ".yamato/wrench/preview-a-p-v.yml#all_preview_apv_jobs",
       ".yamato/wrench/promotion-jobs.yml#publish_dry_run_cloud_gltfast"
     ]
   },
   "publishing_job": ".yamato/wrench/promotion-jobs.yml#publish_cloud_gltfast",
   "branch_pattern": "ReleaseSlash",
-  "wrench_version": "2.1.1.0",
+  "wrench_version": "3.8.0.0",
   "pvp_exemption_path": ".yamato/wrench/pvp-exemptions.json",
   "cs_project_path": "Tools/CI/Gltfast.Cookbook.csproj"
 }

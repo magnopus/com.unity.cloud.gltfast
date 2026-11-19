@@ -138,7 +138,7 @@ namespace GLTFast.Tests.Export
                 }
             }
 
-            Array.Resize(ref scenes, scenes.Length+1);
+            Array.Resize(ref scenes, scenes.Length + 1);
             scenes[scenes.Length - 1] = new EditorBuildSettingsScene(sceneGuid, true);
             EditorBuildSettings.scenes = scenes;
         }
@@ -148,8 +148,8 @@ namespace GLTFast.Tests.Export
             var names = GetRootObjectNamesFromScene(sceneName);
             var assetPath = GetObjectListAssetPath(sceneName);
             var streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, $"{sceneName}.txt");
-            File.WriteAllLines(assetPath,names);
-            File.WriteAllLines(streamingAssetsPath,names);
+            File.WriteAllLines(assetPath, names);
+            File.WriteAllLines(streamingAssetsPath, names);
         }
 
         static void CopyObjectListToStreamingAssets(string sceneName)
@@ -159,11 +159,11 @@ namespace GLTFast.Tests.Export
             var streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, $"{sceneName}.txt");
             if (File.Exists(streamingAssetsPath))
             {
-                FileUtil.ReplaceFile(assetPath,streamingAssetsPath);
+                FileUtil.ReplaceFile(assetPath, streamingAssetsPath);
             }
             else
             {
-                FileUtil.CopyFileOrDirectory(assetPath,streamingAssetsPath);
+                FileUtil.CopyFileOrDirectory(assetPath, streamingAssetsPath);
             }
         }
 
@@ -179,8 +179,10 @@ namespace GLTFast.Tests.Export
             var scene = EditorSceneManager.OpenScene(scenePath);
             var rootObjects = scene.GetRootGameObjects();
             var names = new List<string>();
-            for (var i = 0; i < rootObjects.Length; i++) {
-                if (rootObjects[i].hideFlags != HideFlags.None) {
+            for (var i = 0; i < rootObjects.Length; i++)
+            {
+                if (rootObjects[i].hideFlags != HideFlags.None)
+                {
                     continue;
                 }
                 names.Add(rootObjects[i].name);
@@ -669,16 +671,17 @@ namespace GLTFast.Tests.Export
             );
             export.AddScene(new[] { gameObject }, gameObject.name);
             var extension = binary ? GltfGlobals.GlbExt : GltfGlobals.GltfExt;
-            var fileName = $"{gameObject.name}{extension}";
+            var suffix = toStream ? "-stream" : string.Empty;
+            var fileName = $"{gameObject.name}{suffix}{extension}";
             var path = Path.Combine(Application.persistentDataPath, fileName);
 
             bool success;
             if (toStream)
             {
-                var glbStream = new MemoryStream();
+                await using var glbStream = new FileStream(path, FileMode.Create, FileAccess.Write);
                 success = await export.SaveToStreamAndDispose(glbStream);
                 Assert.Greater(glbStream.Length, 20);
-                glbStream.Close();
+                await glbStream.FlushAsync();
             }
             else
             {
@@ -734,7 +737,8 @@ namespace GLTFast.Tests.Export
             //       to removed async/non-async dichotomy
             var assetPath = $"{pathPrefix}{rpSubfolder}/{testName}.txt";
             var targetJsonAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
-            if (targetJsonAsset == null) {
+            if (targetJsonAsset == null)
+            {
                 assetPath = $"{pathPrefix}/{testName}.txt";
                 targetJsonAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
             }
@@ -1017,6 +1021,42 @@ namespace GLTFast.Tests.Export
 #if UNITY_EDITOR
             SetupTests();
 #endif
+        }
+
+        static IEnumerable MeshContentsSource
+        {
+            get
+            {
+                yield return new TestCaseData(0, 0, LogCode.VertexCountInvalid).Returns(null).SetName("NoVertices");
+                yield return new TestCaseData(3, 0, LogCode.IndexCountInvalid).Returns(null).SetName("NoTriangles");
+                yield return new TestCaseData(3, 3, null).Returns(null).SetName("ValidVerticesAndTriangles");
+            }
+        }
+
+        [UnityTest]
+        [TestCaseSource(nameof(MeshContentsSource))]
+        public IEnumerator MeshContents(int vertices, int triangles, LogCode? expectedLogCode)
+        {
+            var root = new GameObject("root", typeof(MeshFilter), typeof(MeshRenderer));
+
+            var mesh = new Mesh
+            {
+                name = $"Mesh_{vertices}v_{triangles}t",
+                vertices = new Vector3[vertices],
+                triangles = new int[triangles]
+            };
+            var meshFilter = root.GetComponent<MeshFilter>();
+            meshFilter.mesh = mesh;
+
+            var logger = new CollectingLogger();
+            var export = new GameObjectExport(logger: logger);
+            export.AddScene(new[] { root }, "UnityScene");
+            var path = Path.Combine(Application.persistentDataPath, "root.gltf");
+            var task = export.SaveToFileAndDispose(path);
+            yield return AsyncWrapper.WaitForTask(task);
+            var success = task.Result;
+            Assert.IsTrue(success);
+            LoggerTest.AssertLogger(logger, expectedLogCode.HasValue ? new[] { expectedLogCode.Value } : Array.Empty<LogCode>());
         }
     }
 }
