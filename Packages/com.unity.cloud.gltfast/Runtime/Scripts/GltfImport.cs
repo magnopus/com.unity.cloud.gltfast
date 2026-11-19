@@ -92,6 +92,29 @@ namespace GLTFast
 
     /// <inheritdoc cref="GltfImportBase"/>
     /// <typeparam name="TRoot">Root schema class to use for de-serialization.</typeparam>
+    public class GltfImport<TRoot> : GltfImportBase<TRoot>
+        where TRoot : RootBase, new()
+    {
+        static GltfJsonUtilityParser s_Parser;
+
+        /// <inheritdoc cref="GltfImportBase(IDownloadProvider,IDeferAgent,IMaterialGenerator,ICodeLogger)"/>
+        public GltfImport(
+            IDownloadProvider downloadProvider = null,
+            IDeferAgent deferAgent = null,
+            IMaterialGenerator materialGenerator = null,
+            ICodeLogger logger = null
+        ) : base(downloadProvider, deferAgent, materialGenerator, logger) { }
+
+        /// <inheritdoc />
+        protected override RootBase ParseJson(string json)
+        {
+            s_Parser ??= new GltfJsonUtilityParser();
+            return s_Parser.ParseJson<TRoot>(json);
+        }
+    }
+
+    /// <inheritdoc cref="GltfImportBase"/>
+    /// <typeparam name="TRoot">Root schema class to use for de-serialization.</typeparam>
     public abstract class GltfImportBase<TRoot> : GltfImportBase, IGltfReadable<TRoot>
         where TRoot : RootBase
     {
@@ -482,14 +505,8 @@ namespace GLTFast
             CancellationToken cancellationToken = default
             )
         {
-#if NET_STANDARD_2_1
-            await using
-#endif
-            var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read);
+            await using var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read);
             var result = await LoadStream(fs, uri, importSettings, cancellationToken);
-#if !NET_STANDARD_2_1
-            fs.Dispose();
-#endif
             return result;
         }
 
@@ -1039,7 +1056,7 @@ namespace GLTFast
 
         /// <summary>
         /// Gets a specific Unity mesh of a glTF mesh.
-        /// A single glTF mesh is converted into one or more Unity Meshes, so <see cref="meshNumeration" /> is
+        /// A single glTF mesh is converted into one or more Unity Meshes, so <paramref name="meshNumeration" /> is
         /// required to depict which exact one.
         /// </summary>
         /// <param name="meshIndex">glTF mesh index.</param>
@@ -2235,7 +2252,7 @@ namespace GLTFast
             return m_Buffers[bufferIndex].ToStrided<T>(totalOffset, count, byteStride);
         }
 
-        async Task<NativeArray<byte>.ReadOnly> GetBufferViewAsync(
+        async ValueTask<NativeArray<byte>.ReadOnly> GetBufferViewAsync(
             IBufferView bufferView,
             int offset = 0,
             int length = 0
@@ -2782,6 +2799,10 @@ namespace GLTFast
                         );
                         m_Textures[textureIndex] = originalTexture;
                     }
+                    if (m_NonFlippedYTextureIndices != null && m_NonFlippedYTextureIndices.Contains(originalTextureIndex))
+                    {
+                        m_NonFlippedYTextureIndices.Add(textureIndex);
+                    }
                 }
             }
 
@@ -2791,6 +2812,10 @@ namespace GLTFast
                 {
                     var originalTexture = m_Textures[existingTextureIndex];
                     m_Textures[textureIndex] = originalTexture;
+                    if (m_NonFlippedYTextureIndices != null && m_NonFlippedYTextureIndices.Contains(existingTextureIndex))
+                    {
+                        m_NonFlippedYTextureIndices.Add(textureIndex);
+                    }
                 }
             }
         }
@@ -3024,7 +3049,6 @@ namespace GLTFast
                 Profiler.BeginSample("CreateHierarchy");
                 var node = this.Root.Nodes[(int)nodeIndex];
                 node.GetTransform(out var position, out var rotation, out var scale);
-                instantiator.CreateNode(nodeIndex, parentIndex, position, rotation, scale);
 
                 var nodeName = m_NodeNames == null ? node.name : m_NodeNames[nodeIndex];
                 if (nodeName == null && node.mesh >= 0)
@@ -3041,7 +3065,7 @@ namespace GLTFast
                     }
                 }
 
-                instantiator.SetNodeName(nodeIndex, nodeName);
+                instantiator.CreateNode(nodeIndex, parentIndex, position, rotation, scale, nodeName);
                 Profiler.EndSample();
             }
 
@@ -3098,7 +3122,7 @@ namespace GLTFast
 
                         if (meshInstancing == null)
                         {
-                            instantiator.AddPrimitive(
+                            instantiator.AddMesh(
                                 nodeIndex,
                                 meshResultName,
                                 meshResult,
@@ -3138,7 +3162,7 @@ namespace GLTFast
                                 instanceCount = (uint)scales.Value.Length;
                             }
 
-                            instantiator.AddPrimitiveInstanced(
+                            instantiator.AddMeshInstanced(
                                 nodeIndex,
                                 meshResultName,
                                 meshResult,

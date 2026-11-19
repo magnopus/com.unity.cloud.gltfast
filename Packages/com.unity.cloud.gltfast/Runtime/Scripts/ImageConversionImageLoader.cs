@@ -49,12 +49,33 @@ namespace GLTFast
             return ImageResult.Null;
         }
 
-        public static async Task<ImageResult> LoadAsync(
+        public static Task<ImageResult> LoadAsync(
             ImportContext context,
             ImportSettings settings,
             NativeArray<byte>.ReadOnly data,
             bool linear,
             bool readable,
+            CancellationToken cancellationToken
+        )
+        {
+            return LoadAsync(
+                context,
+                data,
+                linear,
+                readable,
+                settings.GenerateMipMaps,
+                settings.AnisotropicFilterLevel,
+                cancellationToken
+                );
+        }
+
+        public static async Task<ImageResult> LoadAsync(
+            ImportContext context,
+            NativeArray<byte>.ReadOnly data,
+            bool linear,
+            bool readable,
+            bool generateMipMaps,
+            int anisotropicFilterLevel,
             CancellationToken cancellationToken
         )
         {
@@ -69,8 +90,8 @@ namespace GLTFast
             // TODO: Investigate alternative: native texture creation in worker thread
             var texture = CreateEmptyTexture(
                 linear,
-                settings.GenerateMipMaps,
-                settings.AnisotropicFilterLevel
+                generateMipMaps,
+                anisotropicFilterLevel
                 );
             texture.LoadImage(data.AsReadOnlySpan(), !readable);
             Profiler.EndSample();
